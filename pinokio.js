@@ -65,6 +65,14 @@ module.exports = {
         text: "<div><strong>Freelance Bot</strong><div>Monitor job postings</div></div>",
         href: "freelance_bot.js"
       }, {
+        icon: "fa-solid fa-clock",
+        text: "<div><strong>Daily Auto-Start</strong><div>Enable 6AM auto-launch + maintenance</div></div>",
+        href: "daily_autostart.js"
+      }, {
+        icon: "fa-solid fa-robot",
+        text: "<div><strong>Proactive System</strong><div>Email, CRM, Finance, LoRA, Health - Fully Autonomous</div></div>",
+        href: "proactive.js"
+      }, {
         icon: "fa-regular fa-circle-xmark",
         text: "Reset",
         href: "reset.js",
