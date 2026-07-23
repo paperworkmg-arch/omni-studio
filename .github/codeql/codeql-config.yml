@@ -1,0 +1,20 @@
+name: "CodeQL Config"
+
+# Only analyze the main launcher scripts and dashboard app
+# Exclude the omni-source subproject which has its own analysis
+paths-ignore:
+  - "app/omni-source/**"
+  - "logs/**"
+  - "**/__pycache__/**"
+  - "**/node_modules/**"
+  - "**/*.min.js"
+
+# For Python, only analyze the dashboard
+paths:
+  - "app/dashboard/**"
+  - "*.py"
+
+# For JavaScript/TypeScript, only analyze launcher scripts and volt-dashboard
+paths:
+  - "*.js"
+  - "app/volt-dashboard/**"

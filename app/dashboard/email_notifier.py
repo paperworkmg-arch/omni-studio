@@ -84,7 +84,8 @@ def _save_notification(subject: str, body: str, drive_url: str = ""):
     if log_file.exists():
         try:
             notifications = json.loads(log_file.read_text())
-        except: pass
+        except Exception:
+            notifications = []
 
     notifications.append({
         "subject": subject,

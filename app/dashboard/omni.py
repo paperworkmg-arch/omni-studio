@@ -12,6 +12,8 @@ import shutil
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from pydantic import BaseModel
+import requests
+import httpx
 
 # === Config ===
 BASE = Path(__file__).parent
@@ -59,7 +61,7 @@ def clean_old_files():
     from datetime import timedelta
     freed = 0
     cutoff = datetime.now() - timedelta(days=CLEAN_MAX_AGE_DAYS)
-    
+
     for clean_dir in CLEAN_PATHS:
         if not clean_dir.exists():
             continue
@@ -71,7 +73,7 @@ def clean_old_files():
                         size = p.stat().st_size
                         p.unlink()
                         freed += size
-                except:
+                except Exception:
                     pass
     return freed
 
@@ -79,12 +81,12 @@ def run_disk_cleaner():
     """Main cleaner: check usage, clean if over limit, return report."""
     usage_gb = get_disk_usage_gb()
     report = {"usage_gb": usage_gb, "limit_gb": MAX_DISK_GB, "cleaned_bytes": 0, "actions": []}
-    
+
     if usage_gb > MAX_DISK_GB:
         freed = clean_old_files()
         report["cleaned_bytes"] = freed
         report["actions"].append(f"Cleaned old files: {freed / (1024**3):.2f} GB freed")
-        
+
         # Clean __pycache__ dirs
         for cache in BASE.rglob("__pycache__"):
             try:
@@ -93,9 +95,9 @@ def run_disk_cleaner():
                 shutil.rmtree(cache)
                 report["cleaned_bytes"] += size
                 report["actions"].append(f"Removed {cache.name}: {size / (1024**3):.2f} GB")
-            except:
+            except Exception:
                 pass
-        
+
         # Clean old backups
         backup_dir = BASE / "data" / "backups"
         if backup_dir.exists():
@@ -106,11 +108,11 @@ def run_disk_cleaner():
                 old.unlink()
                 report["cleaned_bytes"] += size
                 report["actions"].append(f"Removed old backup: {old.name}")
-        
+
         report["final_usage_gb"] = get_disk_usage_gb()
     else:
         report["actions"].append(f"Within limit ({usage_gb}/{MAX_DISK_GB} GB)")
-    
+
     return report
 
 # === Audio Ingestion ===
@@ -151,16 +153,16 @@ async def webbridge_task(objective: str) -> dict:
     """Browser agent: research objective on the web."""
     from omni import call_llm, log_activity
     await log_activity("webbridge", f"Researching: {objective[:80]}")
-    
+
     # Step 1: Generate search queries
     queries = await call_llm("kimi", "kimi-for-coding/kimi-for-coding-highspeed",
         [{"role": "user", "content": f"Generate 3 search queries for: {objective}\nReturn JSON array of strings only."}],
         "Return only a JSON array of search query strings.")
     try:
         queries = json.loads(queries.strip().replace("```json", "").replace("```", ""))
-    except:
+    except Exception:
         queries = [objective]
-    
+
     # Step 2: Search and fetch
     all_results = []
     for q in queries[:3]:
@@ -170,16 +172,16 @@ async def webbridge_task(objective: str) -> dict:
                 try:
                     content = await web_fetch(r["url"])
                     r["content"] = content[:2000]
-                except:
+                except Exception:
                     r["content"] = r.get("snippet", "")
                 all_results.append(r)
-    
+
     # Step 3: Synthesize
     context = "\n\n".join([f"[{r['title']}] {r.get('content', '')[:500]}" for r in all_results[:5]])
     synthesis = await call_llm("kimi", "kimi-for-coding/kimi-for-coding-highspeed",
         [{"role": "user", "content": f"Synthesize findings for: {objective}\n\nSources:\n{context}\n\nProvide comprehensive answer."}],
         "You are a research analyst. Synthesize information clearly.")
-    
+
     await log_activity("webbridge", f"Completed research: {objective[:60]}")
     return {"status": "completed", "objective": objective, "sources": len(all_results), "synthesis": synthesis, "results": all_results[:5]}
 
@@ -189,7 +191,7 @@ async def autonomous_execute(objective: str, max_steps: int = 5) -> dict:
     """Plan and execute complex goals autonomously."""
     from omni import call_llm, log_activity, get_agents, update_agent
     await log_activity("autonomous", f"Starting: {objective[:80]}")
-    
+
     # Step 1: Plan
     plan_response = await call_llm("kimi", "kimi-for-coding/kimi-k2-thinking",
         [{"role": "user", "content": f"Create a plan for: {objective}\nMax steps: {max_steps}\nReturn JSON: {{\"steps\": [{{\"action\": \"...\", \"tool\": \"search|code|analyze|execute\", \"input\": \"...\"}}]}}"}],
@@ -197,18 +199,18 @@ async def autonomous_execute(objective: str, max_steps: int = 5) -> dict:
     try:
         plan = json.loads(plan_response.strip().replace("```json", "").replace("```", ""))
         steps = plan.get("steps", [])
-    except:
+    except Exception:
         steps = [{"action": objective, "tool": "execute", "input": objective}]
-    
+
     # Step 2: Execute each step
     results = []
     for i, step in enumerate(steps[:max_steps]):
         action = step.get("action", "")
         tool = step.get("tool", "execute")
         step_input = step.get("input", action)
-        
+
         await log_activity("autonomous", f"Step {i+1}/{len(steps)}: {action[:60]}")
-        
+
         try:
             if tool == "search":
                 result = await web_search(step_input)
@@ -225,17 +227,17 @@ async def autonomous_execute(objective: str, max_steps: int = 5) -> dict:
                 result = await call_llm("kimi", "kimi-for-coding/k2p7",
                     [{"role": "user", "content": step_input}],
                     "Complete this task precisely.")
-            
+
             results.append({"step": i+1, "action": action, "status": "success", "result": str(result)[:1000]})
         except Exception as e:
             results.append({"step": i+1, "action": action, "status": "error", "result": str(e)[:300]})
-    
+
     # Step 3: Final synthesis
     results_text = "\n".join([f"Step {r['step']}: {r['action'][:50]} → {r['status']}" for r in results])
     summary = await call_llm("kimi", "kimi-for-coding/kimi-k2-thinking",
         [{"role": "user", "content": f"Objective: {objective}\n\nExecution results:\n{results_text}\n\nProvide final summary and outcome."}],
         "You are a project manager. Summarize completion status.")
-    
+
     await log_activity("autonomous", f"Completed: {objective[:60]}")
     return {"status": "completed", "objective": objective, "steps_executed": len(results), "results": results, "summary": summary}
 
@@ -252,14 +254,14 @@ def _init_kimi_daily_db():
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS extractions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            run_date TEXT, transcript TEXT, 
+            run_date TEXT, transcript TEXT,
             music_ip TEXT, crm_notes TEXT, sops TEXT,
             tools_called TEXT, status TEXT,
             created_at TEXT DEFAULT (datetime('now'))
         );
         CREATE TABLE IF NOT EXISTS vault (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            category TEXT, title TEXT, content TEXT, 
+            category TEXT, title TEXT, content TEXT,
             source_run_id INTEGER, tags TEXT,
             created_at TEXT DEFAULT (datetime('now'))
         );
@@ -280,13 +282,13 @@ async def tool_create_document(title: str, content: str, category: str = "docs")
     }
     doc_file = VAULT_DIR / f"{category}_{int(time.time())}.json"
     doc_file.write_text(json.dumps(doc, indent=2))
-    
+
     # Also store in DB
     conn = _sync_sqlite3.connect(str(KIMI_DAILY_DB))
     conn.execute("INSERT INTO vault (category, title, content, tags) VALUES (?,?,?,?)",
                  (category, title, content[:5000], json.dumps([category])))
     conn.commit(); conn.close()
-    
+
     return {"status": "created", "file": str(doc_file)}
 
 async def tool_send_slack_summary(channel: str, message: str) -> dict:
@@ -294,7 +296,7 @@ async def tool_send_slack_summary(channel: str, message: str) -> dict:
     slack_url = os.getenv("SLACK_WEBHOOK_URL", "")
     if not slack_url:
         return {"status": "skipped", "message": "No SLACK_WEBHOOK_URL set"}
-    
+
     async with httpx.AsyncClient() as client:
         r = await client.post(slack_url, json={"text": message[:3000]})
         return {"status": "sent" if r.status_code == 200 else "error"}
@@ -305,7 +307,7 @@ async def tool_vault_store(category: str, title: str, content: str, tags: list =
     conn.execute("INSERT INTO vault (category, title, content, tags) VALUES (?,?,?,?)",
                  (category, title, content, json.dumps(tags or [])))
     conn.commit(); conn.close()
-    
+
     # Also save to file
     vault_file = VAULT_DIR / f"{category}_{int(time.time())}.json"
     vault_file.write_text(json.dumps({"category": category, "title": title, "content": content, "tags": tags}, indent=2))
@@ -330,7 +332,7 @@ async def webbridge_pull_context(sources: list = None) -> str:
     """Pull context from local vault and external sources."""
     context_parts = []
     sources = sources or ["vault", "crm"]
-    
+
     for source in sources:
         if source == "vault":
             # Pull recent vault entries
@@ -343,9 +345,9 @@ async def webbridge_pull_context(sources: list = None) -> str:
                 conn.close()
                 for row in rows:
                     context_parts.append(f"[Vault] {row['title']}: {row['content'][:200]}")
-            except:
+            except Exception:
                 pass
-        
+
         elif source == "crm":
             crm_url = os.getenv("CRM_API_URL", "")
             if crm_url:
@@ -354,9 +356,9 @@ async def webbridge_pull_context(sources: list = None) -> str:
                         r = await client.get(crm_url + "/contacts?limit=5")
                         for contact in r.json().get("contacts", [])[:3]:
                             context_parts.append(f"[CRM] {contact.get('name', '')} - {contact.get('company', '')}")
-                except:
+                except Exception:
                     pass
-    
+
     return "\n".join(context_parts) if context_parts else "No external context available"
 
 # --- Agent Swarm Extraction ---
@@ -369,7 +371,7 @@ async def swarm_extract_music_ip(transcript: str) -> dict:
         "You are a music industry analyst. Extract IP details precisely. Return only valid JSON.")
     try:
         return json.loads(result.strip().replace("```json", "").replace("```", ""))
-    except:
+    except Exception:
         return {"raw": result[:1000]}
 
 async def swarm_extract_crm_notes(transcript: str) -> dict:
@@ -380,7 +382,7 @@ async def swarm_extract_crm_notes(transcript: str) -> dict:
         "You are a CRM specialist. Extract contact and relationship data. Return only valid JSON.")
     try:
         return json.loads(result.strip().replace("```json", "").replace("```", ""))
-    except:
+    except Exception:
         return {"raw": result[:1000]}
 
 async def swarm_extract_sops(transcript: str) -> dict:
@@ -391,7 +393,7 @@ async def swarm_extract_sops(transcript: str) -> dict:
         "You are an operations analyst. Extract SOPs and workflows. Return only valid JSON.")
     try:
         return json.loads(result.strip().replace("```json", "").replace("```", ""))
-    except:
+    except Exception:
         return {"raw": result[:1000]}
 
 # --- Main Pipeline ---
@@ -401,45 +403,45 @@ async def kimi_daily_process(transcript: str, auto_tools: bool = True) -> dict:
     from omni import log_activity
     start = time.time()
     await log_activity("kimi-daily", "Starting daily extraction pipeline")
-    
+
     # Step 1: Pull external context
     context = await webbridge_pull_context(["vault", "crm"])
     enriched_transcript = f"External Context:\n{context}\n\nTranscript:\n{transcript}"
-    
+
     # Step 2: Parallel extraction with specialized agents
     music_ip, crm_notes, sops = await asyncio.gather(
         swarm_extract_music_ip(enriched_transcript),
         swarm_extract_crm_notes(enriched_transcript),
         swarm_extract_sops(enriched_transcript)
     )
-    
+
     # Step 3: Vault storage (durable memory)
     run_id = int(time.time() * 1000)
     await tool_vault_store("music_ip", f"Extraction {run_id}", json.dumps(music_ip), ["music", "ip"])
     await tool_vault_store("crm", f"CRM Notes {run_id}", json.dumps(crm_notes), ["crm", "contacts"])
     await tool_vault_store("sops", f"SOPs {run_id}", json.dumps(sops), ["sops", "operations"])
-    
+
     # Step 4: Save to database
     conn = _sync_sqlite3.connect(str(KIMI_DAILY_DB))
     conn.execute("INSERT INTO extractions (run_date, transcript, music_ip, crm_notes, sops, status) VALUES (?,?,?,?,?,?)",
                  (datetime.now().isoformat(), transcript[:5000], json.dumps(music_ip), json.dumps(crm_notes), json.dumps(sops), "completed"))
     conn.commit(); conn.close()
-    
+
     # Step 5: Call tools if enabled
     tools_called = []
     if auto_tools:
         # Store extraction summary in local vault
         summary = f"Daily Extraction {datetime.now().strftime('%Y-%m-%d')}\n\nMusic IP: {len(music_ip.get('artists', []))} artists, {len(music_ip.get('tracks', []))} tracks\nCRM: {len(crm_notes.get('contacts', []))} contacts\nSOPs: {len(sops.get('procedures', []))} procedures"
-        
+
         doc_result = await tool_create_document(f"Daily Extraction {datetime.now().strftime('%Y-%m-%d')}", summary, "extractions")
         tools_called.append({"tool": "vault", "result": doc_result})
-        
+
         slack_result = await tool_send_slack_summary("daily-extractions", summary)
         tools_called.append({"tool": "slack", "result": slack_result})
-    
+
     elapsed = round(time.time() - start, 2)
     await log_activity("kimi-daily", f"Pipeline completed in {elapsed}s")
-    
+
     return {
         "status": "completed",
         "run_id": run_id,
@@ -463,12 +465,12 @@ class AudioIngestionHandler(FileSystemEventHandler):
     def on_created(self, event):
         if event.is_directory:
             return
-        
+
         filepath = event.src_path
         filename = os.path.basename(filepath)
         _, ext = os.path.splitext(filepath)
         ext = ext.lower()
-        
+
         if ext not in ['.wav', '.mp3']:
             return
 
@@ -481,25 +483,24 @@ class AudioIngestionHandler(FileSystemEventHandler):
             else:
                 from mutagen.mp3 import MP3
                 audio = MP3(filepath)
-            
+
             archive_path = str(PROCESSED_DIR / filename)
-            
+
             payload = {
                 "filename": filename,
                 "format": ext.replace(".", ""),
                 "duration_seconds": round(audio.info.length, 2),
-                "channels": audio.info.channels,
+"channels": audio.info.channels,
                 "sample_rate": audio.info.sample_rate,
                 "archive_path": archive_path
             }
             
-            import requests
-            response = requests.post(f"http://127.0.0.1:{PORT}/ingest", json=payload)
+            response = requests.post(f"http://127.0.0.1:{PORT}/ingest", json=payload, timeout=10)
             response.raise_for_status()
-            
+
             shutil.move(filepath, archive_path)
             print(f"Processed and archived: {filename}")
-                
+
         except Exception as e:
             print(f"Failed to process {filepath}: {str(e)}")
 
@@ -638,7 +639,7 @@ async def run_scheduled_task(task_id, name, agent="atlas"):
     start = time.time()
     await update_task(task_id, status="running", progress=0)
     await log_activity("scheduler", f"Running: {name}")
-    
+
     # Handle Disk Cleaner task directly without LLM
     if name == "Disk Cleaner":
         try:
@@ -655,7 +656,7 @@ async def run_scheduled_task(task_id, name, agent="atlas"):
             await update_task(task_id, status="failed", result=str(e)[:2000])
             await log_activity("scheduler", f"Failed: {name}: {e}", "error")
         return
-    
+
     # Handle Kimi Daily pipeline
     if name == "Kimi Daily":
         try:
@@ -669,7 +670,7 @@ async def run_scheduled_task(task_id, name, agent="atlas"):
             await db.execute("INSERT INTO task_results (task_id,output,status,duration_ms) VALUES (?,?,?,?)",
                              (task_id, result[:2000], "success", elapsed))
             await db.commit(); await db.close()
-            
+
             # Send notification
             await _send_notification("Kimi Daily Complete", f"Extraction completed in {report['elapsed_seconds']}s")
             await log_activity("scheduler", f"Kimi Daily: {report['elapsed_seconds']}s, vault stored")
@@ -677,7 +678,7 @@ async def run_scheduled_task(task_id, name, agent="atlas"):
             await update_task(task_id, status="failed", result=str(e)[:2000])
             await log_activity("scheduler", f"Failed: {name}: {e}", "error")
         return
-    
+
     db = await get_db()
     row = await db.execute_fetchall("SELECT model FROM agents WHERE LOWER(name)=LOWER(?)", (agent,))
     await db.close()
@@ -734,7 +735,7 @@ async def swarm_run(objective, max_agents=3):
             plan_text = plan_text.split("```")[1]
             if plan_text.startswith("json"): plan_text = plan_text[4:]
         tasks = json.loads(plan_text)
-    except: tasks = [{"task": objective, "agent": idle[0]["name"], "priority": 1}]
+    except Exception: tasks = [{"task": objective, "agent": idle[0]["name"], "priority": 1}]
 
     agent_map = {a["name"]: a for a in idle}
     results = []
@@ -781,19 +782,19 @@ from fastapi.templating import Jinja2Templates
 async def lifespan(app):
     await init_db(); scheduler.start(); await sync_schedules()
     _contacts_module.init_contacts_db()
-    
+
     # Start audio ingestion watcher
     ingest_handler = AudioIngestionHandler()
     ingest_observer.schedule(ingest_handler, str(WATCH_DIR), recursive=False)
     ingest_observer.start()
-    
+
     # Start DAW export watcher
     try:
         from daw_watcher import daw_watcher as _daw_watcher
         await _daw_watcher.start()
     except Exception as e:
         print(f"DAW watcher failed to start: {e}")
-    
+
     await log_activity("system", "Dashboard started")
     yield
     ingest_observer.stop()
@@ -801,7 +802,7 @@ async def lifespan(app):
     try:
         from daw_watcher import daw_watcher as _daw_watcher
         _daw_watcher.stop()
-    except: pass
+    except Exception: pass
     scheduler.shutdown()
 
 app = FastAPI(title="Omni-Studio", version="1.0.0", lifespan=lifespan)
@@ -913,7 +914,7 @@ async def api_studio_analyze(filepath: str = Form(...)):
     ext = os.path.splitext(filepath)[1].lower()
     if ext not in ['.wav', '.mp3']:
         raise HTTPException(400, "Unsupported format")
-    
+
     try:
         if ext == '.wav':
             from mutagen.wave import WAVE
@@ -921,7 +922,7 @@ async def api_studio_analyze(filepath: str = Form(...)):
         elif ext == '.mp3':
             from mutagen.mp3 import MP3
             audio = MP3(filepath)
-        
+
         metadata = {
             "filename": os.path.basename(filepath),
             "format": ext.replace(".", ""),
@@ -929,7 +930,7 @@ async def api_studio_analyze(filepath: str = Form(...)):
             "channels": audio.info.channels,
             "sample_rate": audio.info.sample_rate
         }
-        
+
         await log_activity("studio", f"Analyzed: {metadata['filename']}")
         return {"status": "success", "metadata": metadata}
     except Exception as e:
@@ -997,16 +998,6 @@ async def api_update_contact(contact_id: int, data: dict):
 async def api_delete_contact(contact_id: int):
     _delete_contact(contact_id)
     return {"status": "deleted"}
-
-@app.get("/api/contacts/stats")
-async def api_contact_stats():
-    """Get contact stats by status and source."""
-    conn = _contacts_module._get_conn()
-    by_status = {r[0]: r[1] for r in conn.execute("SELECT status, COUNT(*) FROM contacts GROUP BY status").fetchall()}
-    by_source = {r[0]: r[1] for r in conn.execute("SELECT source, COUNT(*) FROM contacts GROUP BY source").fetchall()}
-    total = conn.execute("SELECT COUNT(*) FROM contacts").fetchone()[0]
-    conn.close()
-    return {"total": total, "by_status": by_status, "by_source": by_source}
 
 # === Vault (kimi_daily.db) ===
 @app.get("/api/vault/all")
@@ -1271,7 +1262,7 @@ async def _send_notification(title: str, message: str):
     """Send notification to configured channels."""
     # Slack
     await tool_send_slack_summary("general", f"*{title}*\n{message}")
-    
+
     # Log to activity
     await log_activity("notification", f"{title}: {message}")
 
@@ -1310,7 +1301,7 @@ async def api_daw_status():
     try:
         from daw_watcher import daw_watcher as _daw
         return _daw.get_state()
-    except:
+    except Exception:
         return {"processed_files": [], "uploads": [], "last_scan": None}
 
 @app.get("/api/daw/exports")
@@ -1337,41 +1328,42 @@ AUDIO_APPS = {
     "stabledaw": {
         "name": "StableDAW",
         "description": "AI Audio DAW with text-to-audio, inpainting, and LoRA training",
-        "path": "/Users/mtb/pinokio/api/stabledaw.pinokio.git",
+        "app_id": "stabledaw.pinokio.git",
         "port": 5173,
         "icon": "fa-solid fa-wave-square"
     },
     "stable-audio-3": {
         "name": "Stable Audio 3",
         "description": "Text-to-audio generation for music and sound effects",
-        "path": "/Users/mtb/pinokio/api/stable-audio-3-small.pinokio.git",
+        "app_id": "stable-audio-3-small.pinokio.git",
         "icon": "fa-solid fa-music"
     },
     "tascar": {
         "name": "TASCAR",
         "description": "Spatial audio rendering in Ambisonics and VBAP",
-        "path": "/Users/mtb/pinokio/api/tascar",
+        "app_id": "tascar",
         "icon": "fa-solid fa-headphones"
     }
 }
 
 def get_audio_app_status(app_id: str) -> dict:
-    """Check if an audio app is running by checking its port."""
+    """Check if an audio app is running via pterm status."""
     app = AUDIO_APPS.get(app_id)
     if not app:
         return {"status": "error", "error": "App not found"}
-    
-    # Check if the app's Pinokio script is running
+
+    is_running = False
     try:
         result = subprocess.run(
-            ["pgrep", "-f", app["path"]],
-            capture_output=True,
-            text=True
+            ["pterm", "status", app["app_id"]],
+            capture_output=True, text=True, timeout=5
         )
-        is_running = result.returncode == 0
-    except:
-        is_running = False
-    
+        if result.returncode == 0:
+            info = json.loads(result.stdout)
+            is_running = info.get("running", False)
+    except Exception:
+        pass
+
     return {
         "id": app_id,
         "name": app["name"],
@@ -1397,12 +1389,11 @@ async def api_audio_app_launch(app_id: str):
     app = AUDIO_APPS.get(app_id)
     if not app:
         return {"status": "error", "error": "App not found"}
-    
+
     try:
-        # Use pterm to run the app
         subprocess.Popen(
-            ["pterm", "run", app["path"]],
-            cwd=app["path"]
+            ["pterm", "run", app["app_id"]],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
         )
         return {"status": "ok", "message": f"Launching {app['name']}"}
     except Exception as e:
@@ -1414,19 +1405,18 @@ async def api_audio_app_stop(app_id: str):
     app = AUDIO_APPS.get(app_id)
     if not app:
         return {"status": "error", "error": "App not found"}
-    
+
     try:
-        # Kill processes matching the app path
         subprocess.run(
-            ["pkill", "-f", app["path"]],
-            capture_output=True
+            ["pterm", "stop", app["app_id"]],
+            capture_output=True, timeout=5
         )
         return {"status": "ok", "message": f"Stopping {app['name']}"}
     except Exception as e:
         return {"status": "error", "error": str(e)}
 
 # === Volt Records Agents ===
-AGENTS_DIR = BASE.parent / "agents"
+AGENTS_DIR = BASE.parent / "omni-source" / "agents"
 
 VOLT_AGENTS = {
     "studio_agent": {
@@ -1492,10 +1482,10 @@ def get_agent_status(agent_id: str) -> dict:
     agent = VOLT_AGENTS.get(agent_id)
     if not agent:
         return {"status": "error", "error": "Agent not found"}
-    
+
     script_path = AGENTS_DIR / agent["script"]
     is_installed = script_path.exists()
-    
+
     # Check if agent is currently running
     try:
         result = subprocess.run(
@@ -1504,9 +1494,9 @@ def get_agent_status(agent_id: str) -> dict:
             text=True
         )
         is_running = result.returncode == 0
-    except:
+    except Exception:
         is_running = False
-    
+
     # Get recent logs
     log_file = BASE.parent / "logs" / f"{agent_id.replace('_agent', '')}.log"
     recent_logs = []
@@ -1515,9 +1505,9 @@ def get_agent_status(agent_id: str) -> dict:
             with open(log_file, 'r') as f:
                 lines = f.readlines()
                 recent_logs = [l.strip() for l in lines[-5:] if l.strip()]
-        except:
+        except Exception:
             pass
-    
+
     # Get metrics based on agent type
     metrics = {}
     if agent_id == "studio_agent":
@@ -1544,7 +1534,7 @@ def get_agent_status(agent_id: str) -> dict:
         pitch_dir = BASE.parent / "Outbound_Pitches"
         if pitch_dir.exists():
             metrics["pending_followups"] = len(list(pitch_dir.glob("*_pitch.txt")))
-    
+
     return {
         "id": agent_id,
         "name": agent["name"],
@@ -1574,11 +1564,11 @@ async def api_volt_agent_run(agent_id: str):
     agent = VOLT_AGENTS.get(agent_id)
     if not agent:
         return {"status": "error", "error": "Agent not found"}
-    
+
     script_path = AGENTS_DIR / agent["script"]
     if not script_path.exists():
         return {"status": "error", "error": "Agent script not found"}
-    
+
     try:
         # Run the agent script
         process = subprocess.Popen(
@@ -1597,7 +1587,7 @@ async def api_volt_agent_stop(agent_id: str):
     agent = VOLT_AGENTS.get(agent_id)
     if not agent:
         return {"status": "error", "error": "Agent not found"}
-    
+
     try:
         subprocess.run(
             ["pkill", "-f", agent["script"]],
@@ -1613,16 +1603,16 @@ async def api_volt_agent_logs(agent_id: str, lines: int = 50):
     agent = VOLT_AGENTS.get(agent_id)
     if not agent:
         return {"status": "error", "error": "Agent not found"}
-    
+
     log_file = BASE.parent / "logs" / f"{agent_id.replace('_agent', '')}.log"
     if not log_file.exists():
         return {"logs": []}
-    
+
     try:
         with open(log_file, 'r') as f:
             all_lines = f.readlines()
             return {"logs": [l.strip() for l in all_lines[-lines:] if l.strip()]}
-    except:
+    except Exception:
         return {"logs": []}
 
 @app.get("/api/pipeline/stats")
@@ -1636,7 +1626,7 @@ async def api_pipeline_stats():
         "closed_deals": 0,
         "skipped": 0
     }
-    
+
     dirs = {
         "incoming_leads": BASE.parent / "Incoming_Leads",
         "outbound_pitches": BASE.parent / "Outbound_Pitches",
@@ -1644,7 +1634,7 @@ async def api_pipeline_stats():
         "closed_deals": BASE.parent / "Closed_Deals",
         "skipped": BASE.parent / "Skipped_Leads"
     }
-    
+
     for key, dir_path in dirs.items():
         if dir_path.exists():
             if key == "send_queue":
@@ -1656,7 +1646,7 @@ async def api_pipeline_stats():
                     stats["sent"] = len(list(sent_dir.glob("*.md")))
             else:
                 stats[key] = len(list(dir_path.glob("*.txt")))
-    
+
     return stats
 
 # === System Health ===
@@ -1667,13 +1657,13 @@ async def api_system_health():
     agents = await get_agents()
     tasks = await get_tasks()
     activity = await get_activity(5)
-    
+
     idle_agents = len([a for a in agents if a["status"] == "idle"])
     working_agents = len([a for a in agents if a["status"] == "working"])
     paused_agents = len([a for a in agents if a["status"] == "paused"])
     pending_tasks = len([t for t in tasks if t["status"] == "pending"])
     completed_tasks = len([t for t in tasks if t["status"] == "completed"])
-    
+
     # Check databases
     dbs = {}
     for name, path in [("dashboard", DB_PATH), ("contacts", CONTACTS_DB), ("samples", BASE/"data"/"samples.db"), ("kimi_daily", KIMI_DAILY_DB)]:
@@ -1681,7 +1671,7 @@ async def api_system_health():
             dbs[name] = {"exists": True, "size_mb": round(path.stat().st_size / (1024*1024), 2)}
         else:
             dbs[name] = {"exists": False, "size_mb": 0}
-    
+
     return {
         "status": "ok",
         "timestamp": datetime.now().isoformat(),
@@ -1793,7 +1783,7 @@ async def _run_music_library_scan():
                         inserted = save_targets(targets)
                         total += inserted
                     await asyncio.sleep(1)
-                except: pass
+                except Exception: pass
         await log_activity("leads", f"Library scan complete: {total} new targets")
     except Exception as e:
         await log_activity("leads", f"Library scan failed: {e}", "error")
@@ -1825,7 +1815,7 @@ async def api_payments():
     conn = _crm_conn()
     try:
         rows = conn.execute("SELECT * FROM payments ORDER BY detected_at DESC LIMIT 50").fetchall()
-    except:
+    except Exception:
         rows = []
     conn.close()
     return [dict(r) for r in rows]
@@ -1835,7 +1825,7 @@ async def api_sessions():
     conn = _crm_conn()
     try:
         rows = conn.execute("SELECT * FROM sessions ORDER BY session_date DESC LIMIT 50").fetchall()
-    except:
+    except Exception:
         rows = []
     conn.close()
     return [dict(r) for r in rows]

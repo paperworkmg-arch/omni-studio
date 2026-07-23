@@ -1,8 +1,10 @@
 """SQLite database layer — task widgets, scheduled results, agent logs, sites."""
-import aiosqlite
 import json
 from datetime import datetime
 from pathlib import Path
+
+import aiosqlite
+
 from config import DB_PATH
 
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
