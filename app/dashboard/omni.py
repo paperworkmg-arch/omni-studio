@@ -1913,6 +1913,85 @@ async def api_music_knowledge_search(q: str = "", limit: int = 20):
     await db.close()
     return results
 
+# --- PMG Billboard Catalog API ---
+import aiosqlite
+
+PMG_BILLBOARD_DB = BASE / "data" / "pmg_billboard.db"
+
+@app.get("/api/pmg-billboard/enriched")
+async def api_pmg_enriched(limit: int = 100, offset: int = 0, archetype: str = ""):
+    """Get enriched catalog with Billboard intelligence"""
+    async with aiosqlite.connect(PMG_BILLBOARD_DB) as db:
+        db.row_factory = aiosqlite.Row
+        query = """
+            SELECT local_track_id, local_title, local_artist, match_confidence,
+                   archetype_match, genre_tags, frequency_match, harmonic_similarity,
+                   recommended_actions, created_at
+            FROM catalog_enrichment
+            WHERE 1=1
+        """
+        params = []
+        if archetype:
+            query += " AND archetype_match = ?"
+            params.append(archetype)
+        query += " ORDER BY match_confidence DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+        
+        rows = await db.execute_fetchall(query, params)
+        return [dict(r) for r in rows]
+
+@app.get("/api/pmg-billboard/stats")
+async def api_pmg_stats():
+    """Get enrichment statistics"""
+    async with aiosqlite.connect(PMG_BILLBOARD_DB) as db:
+        db.row_factory = aiosqlite.Row
+        
+        total = await db.execute_fetchall("SELECT COUNT(*) as c FROM catalog_enrichment")
+        
+        by_archetype = await db.execute_fetchall("""
+            SELECT archetype_match, COUNT(*) as count, AVG(match_confidence) as avg_conf
+            FROM catalog_enrichment
+            GROUP BY archetype_match
+            ORDER BY count DESC
+        """)
+        
+        confidence_dist = await db.execute_fetchall("""
+            SELECT 
+                CASE 
+                    WHEN match_confidence >= 0.9 THEN '0.9-1.0'
+                    WHEN match_confidence >= 0.7 THEN '0.7-0.9'
+                    WHEN match_confidence >= 0.5 THEN '0.5-0.7'
+                    ELSE '<0.5'
+                END as range,
+                COUNT(*) as count
+            FROM catalog_enrichment
+            GROUP BY range
+        """)
+        
+        return {
+            "total_enriched": total[0]["c"],
+            "by_archetype": [dict(r) for r in by_archetype],
+            "confidence_distribution": [dict(r) for r in confidence_dist],
+        }
+
+@app.get("/api/pmg-billboard/track/{track_id}")
+async def api_pmg_track(track_id: str):
+    """Get full enrichment for a single track"""
+    async with aiosqlite.connect(PMG_BILLBOARD_DB) as db:
+        db.row_factory = aiosqlite.Row
+        row = await db.execute_fetchall("""
+            SELECT * FROM catalog_enrichment WHERE local_track_id = ?
+        """, (track_id,))
+        if not row:
+            raise HTTPException(404, "Track not found")
+        return dict(row[0])
+
+@app.post("/api/pmg-billboard/re-enrich")
+async def api_pmg_reenrich():
+    """Trigger re-enrichment of catalog"""
+    # In production, this would trigger the enrichment job
+    return {"status": "re-enrichment queued", "message": "Run enrichment script to update"}
+
 # --- Volt Dashboard SPA (must be registered LAST) ---
 from starlette.exceptions import HTTPException as StarletteHTTPException
 

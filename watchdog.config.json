@@ -1,0 +1,183 @@
+{
+  "project_name": "OMNI STUDIO",
+  "description": "Autonomous watchdog for 24/7 operation with self-healing, auto-update, and continuous testing",
+  "version": "1.0.0",
+  
+  "repositories": [
+    {
+      "name": "omni-studio-core",
+      "path": ".",
+      "branch": "main",
+      "build_cmd": "echo 'No build needed for root'"
+    },
+    {
+      "name": "dashboard",
+      "path": "app/dashboard",
+      "branch": "main",
+      "build_cmd": "uv pip install -r requirements.txt"
+    },
+    {
+      "name": "volt-dashboard",
+      "path": "app/volt-dashboard",
+      "branch": "main",
+      "build_cmd": "npm ci && npm run build"
+    },
+    {
+      "name": "stable-audio-3",
+      "path": "app/stable-audio-3",
+      "branch": "main",
+      "build_cmd": "uv sync --extra ui --active"
+    },
+    {
+      "name": "stabledaw",
+      "path": "app/stabledaw",
+      "branch": "main",
+      "build_cmd": "cd frontend && npm ci && npm run build"
+    },
+    {
+      "name": "tascar",
+      "path": "app/tascar",
+      "branch": "main",
+      "build_cmd": "make -j$(sysctl -n hw.ncpu)"
+    }
+  ],
+  
+  "services": [
+    {
+      "name": "omni_dashboard",
+      "url": "http://127.0.0.1:8500",
+      "health_endpoint": "/api/health",
+      "process": "omni.py",
+      "port": 8500,
+      "restart_cmd": "pkill -f 'python omni.py' && cd /Users/mtb/pinokio/api/omni-studio/app/dashboard && nohup python omni.py > /dev/null 2>&1 &"
+    },
+    {
+      "name": "stabledaw_backend",
+      "url": "http://127.0.0.1:8600",
+      "health_endpoint": "/health",
+      "process": "server_wrapper:app",
+      "port": 8600,
+      "restart_cmd": "pkill -f 'server_wrapper:app' && cd /Users/mtb/pinokio/api/omni-studio/app/stabledaw && nohup uv run uvicorn server_wrapper:app --host 127.0.0.1 --port 8600 > /dev/null 2>&1 &"
+    },
+    {
+      "name": "stabledaw_frontend",
+      "url": "http://127.0.0.1:5173",
+      "health_endpoint": "/",
+      "process": "vite",
+      "port": 5173,
+      "restart_cmd": "pkill -f 'vite.*stabledaw' && cd /Users/mtb/pinokio/api/omni-studio/app/stabledaw/frontend && nohup npx vite --host 127.0.0.1 > /dev/null 2>&1 &"
+    },
+    {
+      "name": "stable_audio_3",
+      "url": "http://127.0.0.1:7860",
+      "health_endpoint": "/",
+      "process": "launch.py",
+      "port": 7860,
+      "restart_cmd": "pkill -f 'launch.py' && cd /Users/mtb/pinokio/api/omni-studio/app/stable-audio-3 && nohup python launch.py --model small-music > /dev/null 2>&1 &"
+    },
+    {
+      "name": "volt_dashboard",
+      "url": "http://127.0.0.1:3000",
+      "health_endpoint": "/",
+      "process": "vite",
+      "port": 3000,
+      "restart_cmd": "pkill -f 'vite.*3000' && cd /Users/mtb/pinokio/api/omni-studio/app/volt-dashboard && nohup npm run dev > /dev/null 2>&1 &"
+    }
+  ],
+  
+  "external_apis": [
+    {
+      "name": "Kimi API",
+      "endpoint": "https://api.kimi.com",
+      "check": "health",
+      "critical": true
+    },
+    {
+      "name": "OpenRouter",
+      "endpoint": "https://openrouter.ai",
+      "check": "api/v1/models",
+      "critical": false
+    },
+    {
+      "name": "Hugging Face",
+      "endpoint": "https://huggingface.co",
+      "check": "api/models",
+      "critical": false
+    }
+  ],
+  
+  "schedule": {
+    "git_check_interval": 300,
+    "health_check_interval": 60,
+    "full_test_suite_interval": 3600,
+    "auto_update_interval": 86400,
+    "self_heal_interval": 180
+  },
+  
+  "healing": {
+    "max_restart_attempts": 3,
+    "restart_cooldown": 300,
+    "auto_fix_git_conflicts": true,
+    "rebuild_on_dependency_change": true
+  },
+  
+  "test_vectors": {
+    "unit": {
+      "enabled": true,
+      "pattern": "tests/**/test_*.py",
+      "command": "python -m pytest tests/ -v --tb=short"
+    },
+    "integration": {
+      "enabled": true,
+      "tests": [
+        "dashboard_startup",
+        "database_connectivity",
+        "api_endpoints",
+        "websocket_connections",
+        "file_upload",
+        "sample_library_scan",
+        "audio_analysis",
+        "music_knowledge_api",
+        "scheduler_tasks",
+        "plugin_system",
+        "contacts_crm",
+        "swarm_coordination",
+        "llm_router",
+        "github_integration",
+        "google_drive",
+        "email_notifications",
+        "disk_cleaner"
+      ]
+    },
+    "load": {
+      "enabled": false,
+      "duration": 60,
+      "concurrent_users": 10
+    },
+    "security": {
+      "enabled": true,
+      "checks": ["sql_injection", "xss", "path_traversal", "auth_bypass", "dependency_scan"]
+    },
+    "regression": {
+      "enabled": true,
+      "baseline": "last_successful_run"
+    }
+  },
+  
+  "notifications": {
+    "on_healing": true,
+    "on_test_failure": true,
+    "on_update": true,
+    "on_startup": true,
+    "webhook_url": "",
+    "email": ""
+  },
+  
+  "thresholds": {
+    "cpu_percent": 90,
+    "memory_percent": 85,
+    "disk_percent": 90,
+    "response_time_ms": 5000,
+    "error_rate_percent": 5
+  }
+}
