@@ -1830,6 +1830,89 @@ async def api_sessions():
     conn.close()
     return [dict(r) for r in rows]
 
+# === Music Knowledge API ===
+import sqlite3 as _sql3
+
+@app.get("/api/music-knowledge/billboard")
+async def api_music_billboard(decade: str = "", genre: str = ""):
+    """Get billboard chart archetypes for hit record patterns"""
+    db = await get_db()
+    query = "SELECT * FROM music_knowledge_billboard WHERE 1=1"
+    params = []
+    if decade:
+        query += " AND decade=?"
+        params.append(decade)
+    if genre:
+        query += " AND genre LIKE ?"
+        params.append(f"%{genre}%")
+    query += " ORDER BY decade, genre"
+    rows = await db.execute_fetchall(query, params)
+    await db.close()
+    return [dict(r) for r in rows]
+
+@app.get("/api/music-knowledge/frequency")
+async def api_music_frequency(genre: str = ""):
+    """Get frequency band profiles for mixing/mastering hit records"""
+    db = await get_db()
+    query = "SELECT * FROM music_knowledge_frequency WHERE 1=1"
+    params = []
+    if genre:
+        query += " AND genre=?"
+        params.append(genre)
+    query += " ORDER BY genre, freq_low"
+    rows = await db.execute_fetchall(query, params)
+    await db.close()
+    return [dict(r) for r in rows]
+
+@app.get("/api/music-knowledge/harmonic")
+async def api_music_harmonic(pattern: str = ""):
+    """Get harmonic progression patterns used in hit records"""
+    db = await get_db()
+    query = "SELECT * FROM music_knowledge_harmonic WHERE 1=1"
+    params = []
+    if pattern:
+        query += " AND pattern_name LIKE ?"
+        params.append(f"%{pattern}%")
+    query += " ORDER BY pattern_name"
+    rows = await db.execute_fetchall(query, params)
+    await db.close()
+    return [dict(r) for r in rows]
+
+@app.get("/api/music-knowledge/resonance")
+async def api_music_resonance(concept: str = ""):
+    """Get vibration/resonance concepts (Solfeggio, Schumann, A432, etc.)"""
+    db = await get_db()
+    query = "SELECT * FROM music_knowledge_resonance WHERE 1=1"
+    params = []
+    if concept:
+        query += " AND concept LIKE ?"
+        params.append(f"%{concept}%")
+    query += " ORDER BY concept"
+    rows = await db.execute_fetchall(query, params)
+    await db.close()
+    return [dict(r) for r in rows]
+
+@app.get("/api/music-knowledge/search")
+async def api_music_knowledge_search(q: str = "", limit: int = 20):
+    """Full-text search across all music knowledge tables"""
+    db = await get_db()
+    results = {}
+    
+    tables = [
+        ("billboard", "music_knowledge_billboard", "decade || ' ' || genre || ' ' || production_traits"),
+        ("frequency", "music_knowledge_frequency", "genre || ' ' || band || ' ' || description"),
+        ("harmonic", "music_knowledge_harmonic", "pattern_name || ' ' || chords || ' ' || emotional_impact"),
+        ("resonance", "music_knowledge_resonance", "concept || ' ' || description"),
+    ]
+    
+    for name, table, search_cols in tables:
+        query = f"SELECT * FROM {table} WHERE {search_cols} LIKE ? LIMIT ?"
+        rows = await db.execute_fetchall(query, (f"%{q}%", limit))
+        results[name] = [dict(r) for r in rows]
+    
+    await db.close()
+    return results
+
 # --- Volt Dashboard SPA (must be registered LAST) ---
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
