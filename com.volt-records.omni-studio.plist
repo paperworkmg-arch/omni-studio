@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.volt-records.omni-studio</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/mtb/pinokio/bin/npm/bin/pterm</string>
+        <string>start</string>
+        <string>/Users/mtb/pinokio/api/omni-studio/start.js</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/mtb/pinokio/api/omni-studio</string>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>6</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/Users/mtb/pinokio/api/omni-studio/logs/autostart.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/mtb/pinokio/api/omni-studio/logs/autostart.err.log</string>
+    <key>RunAtLoad</key>
+    <false/>
+    <key>KeepAlive</key>
+    <false/>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/mtb/pinokio/bin/npm/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>HOME</key>
+        <string>/Users/mtb</string>
+    </dict>
+</dict>
+</plist>
