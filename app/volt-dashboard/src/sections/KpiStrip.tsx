@@ -185,8 +185,14 @@ export default function KpiStrip() {
     )
   }
 
-  const total = summary.total_tracks
-  const redZonePct = total > 0 ? (summary.red_zone_count / total) * 100 : 0
+  const total = summary.total_tracks || 0
+  const redZoneCount = summary.red_zone_count ?? 0
+  const redZonePct = total > 0 ? (redZoneCount / total) * 100 : 0
+  const acquireCount = summary.acquire_count ?? 0
+  const avgHpi = summary.avg_hpi ?? 0
+  const avgBpm = summary.avg_bpm ?? 0
+  const minBpm = summary.min_bpm ?? 0
+  const maxBpm = summary.max_bpm ?? 0
 
   return (
     <section id="metrics" aria-label="Signal metrics" className="scroll-mt-20">
@@ -207,37 +213,37 @@ export default function KpiStrip() {
         />
         <KpiCard
           name="AVG HIT POTENTIAL"
-          value={<CountUp value={summary.avg_hpi} decimals={2} delay={0.3} />}
+          value={<CountUp value={avgHpi} decimals={2} delay={0.3} />}
           unit="MEAN HPI / 10"
           context={
             <span>
-              RED ZONE ≥8.5 — <span className="text-amber">{summary.red_zone_count} TRACKS</span> · {redZonePct.toFixed(1)}%
+              RED ZONE ≥8.5 — <span className="text-amber">{redZoneCount} TRACKS</span> · {redZonePct.toFixed(1)}%
             </span>
           }
           spark={<HpiSpark />}
-          faderPct={summary.avg_hpi / 10}
+          faderPct={avgHpi / 10}
           delay={0.09}
         />
         <KpiCard
           name="ACQUISITION-READY"
-          value={<CountUp value={summary.acquire_count} delay={0.4} />}
+          value={<CountUp value={acquireCount} delay={0.4} />}
           unit="TRACKS FLAGGED ACQUIRE"
-          context={<span>{total > 0 ? ((summary.acquire_count / total) * 100).toFixed(1) : '0.0'}% OF CATALOG</span>}
+          context={<span>{total > 0 ? ((acquireCount / total) * 100).toFixed(1) : '0.0'}% OF CATALOG</span>}
           spark={<StrategySpark buckets={buckets} />}
-          faderPct={summary.acquire_count / total}
+          faderPct={total > 0 ? acquireCount / total : 0}
           delay={0.18}
         />
         <KpiCard
           name="AVG TEMPO"
-          value={<CountUp value={summary.avg_bpm} decimals={1} delay={0.5} />}
+          value={<CountUp value={avgBpm} decimals={1} delay={0.5} />}
           unit="MEAN BPM"
           context={
             <span>
-              RANGE {summary.min_bpm.toFixed(1)} — {summary.max_bpm.toFixed(1)} BPM
+              RANGE {minBpm.toFixed(1)} — {maxBpm.toFixed(1)} BPM
             </span>
           }
           spark={<BpmSpark tracks={tracks} />}
-          faderPct={(summary.avg_bpm - summary.min_bpm) / (summary.max_bpm - summary.min_bpm || 1)}
+          faderPct={maxBpm - minBpm > 0 ? (avgBpm - minBpm) / (maxBpm - minBpm) : 0}
           delay={0.27}
         />
       </div>

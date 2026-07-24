@@ -391,7 +391,7 @@ export default function Ledger({ filters, onFiltersChange }: Props) {
                         </td>
                         <td className="max-w-[320px] truncate px-2 text-[13px] font-medium text-ink-1">{t.track}</td>
                         <td className="px-2 text-right font-mono text-[12.5px] text-ink-2" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                          {t.bpm.toFixed(1)}
+                          {t.bpm != null ? t.bpm.toFixed(1) : '—'}
                         </td>
                         <td className="px-2 text-center font-mono text-[12px] text-ink-2">{t.key}</td>
                         <td className="px-2">
@@ -405,26 +405,28 @@ export default function Ledger({ filters, onFiltersChange }: Props) {
                         <td className="px-2 text-right">
                           <span className="inline-flex items-center justify-end gap-1.5">
                             <span className="font-mono text-[12.5px] text-ink-2" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                              {t.energy_density.toFixed(1)}
+                              {t.energy_density != null ? t.energy_density.toFixed(1) : '—'}
                             </span>
                             <span aria-hidden className="inline-block h-[4px] w-[24px] overflow-hidden rounded-[1px] bg-bg-3">
                               <span
                                 className="block h-full bg-amber/70"
                                 style={{
-                                  width: `${(((t.energy_density - METRIC_RANGES.energy_density.min) / (METRIC_RANGES.energy_density.max - METRIC_RANGES.energy_density.min)) * 100).toFixed(0)}%`,
+                                  width: `${(t.energy_density != null
+                                    ? (((t.energy_density - METRIC_RANGES.energy_density.min) / (METRIC_RANGES.energy_density.max - METRIC_RANGES.energy_density.min)) * 100).toFixed(0)
+                                    : '0') }%`,
                                 }}
                               />
                             </span>
                           </span>
                         </td>
                         <td className="px-2 text-right font-mono text-[12.5px] text-ink-2" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                          {t.alpha.toFixed(1)}
+                          {t.alpha != null ? t.alpha.toFixed(1) : '—'}
                         </td>
                         <td className="px-2 text-right font-mono text-[12.5px] text-ink-2" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                          {t.structural_velocity.toFixed(1)}
+                          {t.structural_velocity != null ? t.structural_velocity.toFixed(1) : '—'}
                         </td>
                         <td className="px-2 text-right font-mono text-[12.5px] text-ink-2" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                          {t.market_modularity.toFixed(1)}
+                          {t.market_modularity != null ? t.market_modularity.toFixed(1) : '—'}
                         </td>
                         <td
                           className="px-2 text-right font-mono text-[13px] font-bold"
@@ -434,7 +436,7 @@ export default function Ledger({ filters, onFiltersChange }: Props) {
                             textShadow: t.hpi >= 8.8 ? '0 0 8px rgba(232,163,61,0.45)' : 'none',
                           }}
                         >
-                          {t.hpi.toFixed(2)}
+                          {t.hpi != null ? t.hpi.toFixed(2) : '—'}
                         </td>
                         <td className="px-2">
                           <VerdictBadge bucket={bucket} />
@@ -457,14 +459,14 @@ export default function Ledger({ filters, onFiltersChange }: Props) {
                                     <p className="max-w-[72ch] text-[13px] leading-relaxed text-ink-2">{t.verdict}</p>
                                     <div className="mt-2.5 flex flex-wrap gap-1.5">
                                       {[
-                                        `BPM ${t.bpm.toFixed(1)}`,
+                                        `BPM ${t.bpm != null ? t.bpm.toFixed(1) : '—'}`,
                                         `KEY ${t.key}`,
                                         t.brightness.toUpperCase(),
-                                        `ENERGY ${t.energy_density.toFixed(1)}`,
-                                        `ALPHA ${t.alpha.toFixed(1)}`,
-                                        `STRUCT ${t.structural_velocity.toFixed(1)}`,
-                                        `MOD ${t.market_modularity.toFixed(1)}`,
-                                        `HPI ${t.hpi.toFixed(2)}`,
+                                        `ENERGY ${t.energy_density != null ? t.energy_density.toFixed(1) : '—'}`,
+                                        `ALPHA ${t.alpha != null ? t.alpha.toFixed(1) : '—'}`,
+                                        `STRUCT ${t.structural_velocity != null ? t.structural_velocity.toFixed(1) : '—'}`,
+                                        `MOD ${t.market_modularity != null ? t.market_modularity.toFixed(1) : '—'}`,
+                                        `HPI ${t.hpi != null ? t.hpi.toFixed(2) : '—'}`,
                                       ].map((chip) => (
                                         <span key={chip} className="rounded-[2px] border border-line px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-3">
                                           {chip}

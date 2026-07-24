@@ -16,15 +16,15 @@ import type { Track } from '@/lib/catalog'
 function transformTrack(ct: CatalogTrack): Track {
   return {
     track: ct.track_name,
-    bpm: ct.bpm,
-    key: ct.key,
-    brightness: ct.brightness,
-    energy_density: ct.energy_density,
-    alpha: ct.alpha,
-    structural_velocity: ct.structural_velocity,
-    market_modularity: ct.market_modularity,
-    hpi: ct.hpi,
-    verdict: ct.verdict,
+    bpm: ct.bpm ?? 0,
+    key: ct.key ?? 'N/A',
+    brightness: ct.brightness ?? 'Warm/Dark',
+    energy_density: ct.energy_density ?? 0,
+    alpha: ct.alpha ?? 0,
+    structural_velocity: ct.structural_velocity ?? 0,
+    market_modularity: ct.market_modularity ?? 0,
+    hpi: ct.hpi ?? 0,
+    verdict: ct.verdict ?? 'ANALYZE',
   }
 }
 

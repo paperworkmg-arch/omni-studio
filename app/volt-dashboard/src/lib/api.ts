@@ -121,29 +121,29 @@ export const runKimiDaily = (transcript?: string) =>
 export interface CatalogTrack {
   id: number
   track_name: string
-  bpm: number
-  key: string
-  brightness: 'Bright/Aggressive' | 'Warm/Dark'
-  energy_density: number
-  alpha: number
-  structural_velocity: number
-  market_modularity: number
-  hpi: number
-  verdict: string
+  bpm: number | null
+  key: string | null
+  brightness: 'Bright/Aggressive' | 'Warm/Dark' | null
+  energy_density: number | null
+  alpha: number | null
+  structural_velocity: number | null
+  market_modularity: number | null
+  hpi: number | null
+  verdict: string | null
   verdict_bucket: 'ACQUIRE' | 'PITCH' | 'PITCH+LICENSE' | 'LICENSE' | 'ANALYZE'
   imported_at: string
 }
 
 export interface CatalogSummary {
-  total_tracks: number
-  avg_hpi: number
-  avg_bpm: number
-  min_bpm: number
-  max_bpm: number
-  red_zone_count: number
-  acquire_count: number
-  bright_count: number
-  warm_count: number
+  total_tracks: number | null
+  avg_hpi: number | null
+  avg_bpm: number | null
+  min_bpm: number | null
+  max_bpm: number | null
+  red_zone_count: number | null
+  acquire_count: number | null
+  bright_count: number | null
+  warm_count: number | null
 }
 
 export interface KeyDistribution { key: string; count: number }

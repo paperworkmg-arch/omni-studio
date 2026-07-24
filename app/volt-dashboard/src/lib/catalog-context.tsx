@@ -41,18 +41,35 @@ export function CatalogProvider({ children }: Props) {
   const { data: keys = [], isLoading: keysLoading } = useCatalogKeys()
   const { data: buckets = [], isLoading: bucketsLoading } = useCatalogBuckets()
 
+  // Ensure arrays are always arrays, never null/undefined
+  const safeTopProspects = Array.isArray(topProspects) ? topProspects : []
+  const safeKeys = Array.isArray(keys) ? keys : []
+  const safeBuckets = Array.isArray(buckets) ? buckets : []
+
   const isLoading = tracksLoading || summaryLoading || prospectsLoading || keysLoading || bucketsLoading
   const isError = tracksError
 
   const value = useMemo(() => ({
     tracks,
-    summary: summary ?? null,
-    topProspects,
-    keys,
-    buckets,
+    summary: summary
+      ? {
+          total_tracks: summary.total_tracks ?? 0,
+          avg_hpi: summary.avg_hpi ?? 0,
+          avg_bpm: summary.avg_bpm ?? 0,
+          min_bpm: summary.min_bpm ?? 0,
+          max_bpm: summary.max_bpm ?? 0,
+          red_zone_count: summary.red_zone_count ?? 0,
+          acquire_count: summary.acquire_count ?? 0,
+          bright_count: summary.bright_count ?? 0,
+          warm_count: summary.warm_count ?? 0,
+        }
+      : null,
+    topProspects: safeTopProspects,
+    keys: safeKeys,
+    buckets: safeBuckets,
     isLoading,
     isError,
-  }), [tracks, summary, topProspects, keys, buckets, isLoading, isError])
+  }), [tracks, summary, safeTopProspects, safeKeys, safeBuckets, isLoading, isError])
 
   return (
     <CatalogContext.Provider value={value}>
