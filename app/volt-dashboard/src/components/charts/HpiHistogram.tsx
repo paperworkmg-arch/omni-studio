@@ -96,7 +96,7 @@ export default function HpiHistogram({ tracks, filters, onCrossFilter }: Props) 
     >
       {/* callout */}
       <div className="hist-callout pointer-events-none absolute right-6 top-0 z-10 max-w-[200px] text-right font-mono text-[11px] leading-snug text-ink-1">
-        <span className="font-bold text-amber-hi">{RED_ZONE_PCT.toFixed(1)}%</span> of the catalog sits in the red zone
+        <span className="font-bold text-amber-hi">{RED_ZONE_PCT != null ? RED_ZONE_PCT.toFixed(1) : '0.0'}%</span> of the catalog sits in the red zone
       </div>
       <div className="overflow-x-auto">
         <svg
@@ -129,9 +129,9 @@ export default function HpiHistogram({ tracks, filters, onCrossFilter }: Props) 
               <g
                 key={b.lo}
                 className="cursor-pointer"
-                onClick={() => onCrossFilter({ kind: 'hpi', lo: b.lo, hi: b.hi, label: `HPI ${b.lo.toFixed(1)}–${b.hi.toFixed(1)}` })}
+                onClick={() => onCrossFilter({ kind: 'hpi', lo: b.lo, hi: b.hi, label: `HPI ${b.lo != null ? b.lo.toFixed(1) : '0.0'}–${b.hi != null ? b.hi.toFixed(1) : '0.0'}` })}
               >
-                <title>{`${b.lo.toFixed(1)}–${b.hi.toFixed(1)} — ${b.count} TRACKS (${pct}%)`}</title>
+                <title>{`${b.lo != null ? b.lo.toFixed(1) : '0.0'}–${b.hi != null ? b.hi.toFixed(1) : '0.0'} — ${b.count} TRACKS (${pct}%)`}</title>
                 <rect
                   className="hist-bar transition-[fill] duration-150 hover:fill-amber-hi"
                   x={x}
@@ -173,12 +173,12 @@ export default function HpiHistogram({ tracks, filters, onCrossFilter }: Props) 
                   fontSize="9"
                   fontFamily="'JetBrains Mono', monospace"
                 >
-                  {b.lo.toFixed(1)}
+                  {b.lo != null ? b.lo.toFixed(1) : '0.0'}
                 </text>
               </g>
             )
             return (
-              <ChartTip key={b.lo} label={`${b.lo.toFixed(1)}–${b.hi.toFixed(1)} — ${b.count} TRACKS (${pct}%)`}>
+              <ChartTip key={b.lo} label={`${b.lo != null ? b.lo.toFixed(1) : '0.0'}–${b.hi != null ? b.hi.toFixed(1) : '0.0'} — ${b.count} TRACKS (${pct}%)`}>
                 {bar}
               </ChartTip>
             )

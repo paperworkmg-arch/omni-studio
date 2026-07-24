@@ -119,7 +119,7 @@ export default function BpmHpiScatter({ tracks, filters, onCrossFilter }: Props)
             viewBox={`0 0 ${W} ${H}`}
             className="min-w-[560px]"
             role="img"
-            aria-label={`Scatter plot of BPM versus HPI for ${TOTAL_TRACKS} tracks; ${BRIGHT_COUNT} bright/aggressive, ${WARM_COUNT} warm/dark; mean BPM ${AVG_BPM.toFixed(1)}, mean HPI ${AVG_HPI.toFixed(2)}`}
+            aria-label={`Scatter plot of BPM versus HPI for ${TOTAL_TRACKS} tracks; ${BRIGHT_COUNT} bright/aggressive, ${WARM_COUNT} warm/dark; mean BPM ${AVG_BPM != null ? AVG_BPM.toFixed(1) : '—'}, mean HPI ${AVG_HPI != null ? AVG_HPI.toFixed(2) : '—'}`}
           >
             {/* gridlines — every 20 BPM / 1 HPI */}
             {[60, 80, 100, 120, 140, 160, 180].map((b) => (
@@ -166,10 +166,10 @@ export default function BpmHpiScatter({ tracks, filters, onCrossFilter }: Props)
             <line className="scatter-rule" x1={ML} x2={W - MR} y1={yFor(AVG_HPI)} y2={yFor(AVG_HPI)} stroke="#57493A" strokeDasharray="4 4" />
             <line className="scatter-rule" x1={ML} x2={W - MR} y1={yFor(8.5)} y2={yFor(8.5)} stroke="#D95B33" strokeDasharray="4 4" />
             <text className="scatter-rule-label" x={xFor(AVG_BPM) + 4} y={MT + 10} fill="#7D7160" fontSize="9" fontFamily="'JetBrains Mono', monospace">
-              μ {AVG_BPM.toFixed(1)}
+              μ {AVG_BPM != null ? AVG_BPM.toFixed(1) : '—'}
             </text>
             <text className="scatter-rule-label" x={W - MR - 4} y={yFor(AVG_HPI) - 4} textAnchor="end" fill="#7D7160" fontSize="9" fontFamily="'JetBrains Mono', monospace">
-              μ {AVG_HPI.toFixed(2)}
+              μ {AVG_HPI != null ? AVG_HPI.toFixed(2) : '—'}
             </text>
             <text className="scatter-rule-label" x={W - MR - 4} y={yFor(8.5) - 4} textAnchor="end" fill="#D95B33" fontSize="9" fontFamily="'JetBrains Mono', monospace">
               RED ZONE
@@ -187,7 +187,7 @@ export default function BpmHpiScatter({ tracks, filters, onCrossFilter }: Props)
             >
               <p className="font-bold text-ink-1">{truncate(hovered.t.track, 34)}</p>
               <p className="text-ink-2">
-                {hovered.t.bpm.toFixed(1)} BPM · KEY {hovered.t.key} · HPI {hovered.t.hpi.toFixed(2)}
+                {hovered.t.bpm != null ? hovered.t.bpm.toFixed(1) : '—'} BPM · KEY {hovered.t.key} · HPI {hovered.t.hpi != null ? hovered.t.hpi.toFixed(2) : '—'}
               </p>
               <p className="text-ink-3">{bucketOf(hovered.t.verdict)}</p>
             </div>

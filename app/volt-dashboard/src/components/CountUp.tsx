@@ -24,7 +24,11 @@ export default function CountUp({ value, decimals = 0, duration = 1.4, delay = 0
       const el = ref.current
       if (!el) return
       const render = (v: number) => {
-        el.textContent = format ? format(v) : v.toFixed(decimals)
+        if (format) {
+          el.textContent = format(v)
+        } else {
+          el.textContent = Number.isFinite(v) ? v.toFixed(decimals) : '—'
+        }
       }
       if (prefersReducedMotion()) {
         render(value)
@@ -56,7 +60,7 @@ export default function CountUp({ value, decimals = 0, duration = 1.4, delay = 0
 
   return (
     <span ref={ref} className={className} style={{ fontVariantNumeric: 'tabular-nums' }}>
-      {format ? format(0) : (0).toFixed(decimals)}
+      {format ? format(0) : Number.isFinite(0) ? (0).toFixed(decimals) : '—'}
     </span>
   )
 }

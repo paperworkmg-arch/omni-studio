@@ -17,7 +17,7 @@ function gaugeArc(cx: number, cy: number, r: number, a0: number, a1: number): st
   const [x0, y0] = polar(cx, cy, r, a0)
   const [x1, y1] = polar(cx, cy, r, a1)
   const large = a1 - a0 > 180 ? 1 : 0
-  return `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`
+  return `M ${(x0 != null ? x0 : 0).toFixed(2)} ${(y0 != null ? y0 : 0).toFixed(2)} A ${r} ${r} 0 ${large} 1 ${(x1 != null ? x1 : 0).toFixed(2)} ${(y1 != null ? y1 : 0).toFixed(2)}`
 }
 
 function HpiDial({ hpi, top, delay }: { hpi: number; top: boolean; delay: number }) {
@@ -57,7 +57,7 @@ function HpiDial({ hpi, top, delay }: { hpi: number; top: boolean; delay: number
         transition={{ delay: delay + 0.7, duration: 0.2 }}
       />
       <text x={CX} y={CY + 12} textAnchor="middle" fill="#EFE6D6" fontSize="15" fontWeight="700" fontFamily="'JetBrains Mono', monospace">
-        {hpi.toFixed(2)}
+        {Number.isFinite(hpi) ? hpi.toFixed(2) : '—'}
       </text>
     </svg>
   )
@@ -81,7 +81,7 @@ function MetricBar({ label, value, min, max, tone, delay }: { label: string; val
         />
       </div>
       <span className="w-8 shrink-0 text-right font-mono text-[10px] text-ink-2" style={{ fontVariantNumeric: 'tabular-nums' }}>
-        {value.toFixed(1)}
+        {value != null && Number.isFinite(value) ? value.toFixed(1) : '—'}
       </span>
     </div>
   )
@@ -103,7 +103,7 @@ function ProspectCard({ track, rank, onCrossFilter }: { track: Track; rank: numb
       viewport={{ once: true, margin: '0px 0px -15% 0px' }}
       transition={{ duration: 0.65, ease: EASE_OUT_EXPO, delay }}
       style={{ transformPerspective: 800 }}
-      aria-label={`Prospect rank ${rank}: ${track.track}, HPI ${track.hpi.toFixed(2)}. Show in ledger.`}
+      aria-label={`Prospect rank ${rank}: ${track.track}, HPI ${Number.isFinite(track.hpi) ? track.hpi.toFixed(2) : '—'}. Show in ledger.`}
     >
       {/* top row: rank + badge */}
       <div className="mb-3 flex items-center justify-between">
@@ -126,7 +126,7 @@ function ProspectCard({ track, rank, onCrossFilter }: { track: Track; rank: numb
         <div className="min-w-0">
           <h4 className="line-clamp-2 text-[15px] font-semibold leading-snug text-ink-1">{track.track}</h4>
           <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-3">
-            {track.bpm.toFixed(1)} BPM · KEY {track.key} ·{' '}
+            {Number.isFinite(track.bpm) ? track.bpm.toFixed(1) : '—'} BPM · KEY {track.key} ·{' '}
             <span style={{ color: bright ? '#E8A33D' : '#B87333' }}>{track.brightness.toUpperCase()}</span>
           </p>
         </div>

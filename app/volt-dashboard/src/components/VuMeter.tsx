@@ -34,8 +34,8 @@ const VuMeter = memo(function VuMeter() {
       /* spring-return-ish lerp (stiffness 90 / damping 18 feel) */
       a1.cur += (a1.tgt - a1.cur) * 0.09
       a2.cur += (a2.tgt - a2.cur) * 0.09
-      n1.current?.setAttribute('transform', `rotate(${a1.cur.toFixed(2)} 16 20)`)
-      n2.current?.setAttribute('transform', `rotate(${a2.cur.toFixed(2)} 28 20)`)
+      n1.current?.setAttribute('transform', `rotate(${Number.isFinite(a1.cur) ? a1.cur.toFixed(2) : '0.00'} 16 20)`)
+      n2.current?.setAttribute('transform', `rotate(${Number.isFinite(a2.cur) ? a2.cur.toFixed(2) : '0.00'} 28 20)`)
       raf = requestAnimationFrame(loop)
     }
     startIv()

@@ -105,7 +105,7 @@ function BpmSpark({ tracks }: { tracks: { bpm: number }[] }) {
   }
   const max = Math.max(...bins)
   const pts = bins.map((c, i) => [2 + (i * 92) / 11, 24 - (c / max) * 20] as const)
-  const d = pts.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
+  const d = pts.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${Number.isFinite(x) ? x.toFixed(1) : '0.0'},${Number.isFinite(y) ? y.toFixed(1) : '0.0'}`).join(' ')
   const [ex, ey] = pts[pts.length - 1]
   return (
     <svg width="96" height="28" viewBox="0 0 96 28" aria-hidden className="opacity-60 transition-opacity duration-150 group-hover:opacity-100">
@@ -217,7 +217,7 @@ export default function KpiStrip() {
           unit="MEAN HPI / 10"
           context={
             <span>
-              RED ZONE ≥8.5 — <span className="text-amber">{redZoneCount} TRACKS</span> · {redZonePct.toFixed(1)}%
+              RED ZONE ≥8.5 — <span className="text-amber">{redZoneCount} TRACKS</span> · {Number.isFinite(redZonePct) ? redZonePct.toFixed(1) : '0.0'}%
             </span>
           }
           spark={<HpiSpark />}
@@ -239,7 +239,7 @@ export default function KpiStrip() {
           unit="MEAN BPM"
           context={
             <span>
-              RANGE {minBpm.toFixed(1)} — {maxBpm.toFixed(1)} BPM
+              RANGE {Number.isFinite(minBpm) ? minBpm.toFixed(1) : '0.0'} — {Number.isFinite(maxBpm) ? maxBpm.toFixed(1) : '0.0'} BPM
             </span>
           }
           spark={<BpmSpark tracks={tracks} />}

@@ -28,7 +28,7 @@ function arcPath(a0: number, a1: number, r: number): string {
   const [x0, y0] = polar(a0, r)
   const [x1, y1] = polar(a1, r)
   const large = a1 - a0 > 180 ? 1 : 0
-  return `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`
+  return `M ${(x0 != null ? x0 : 0).toFixed(2)} ${(y0 != null ? y0 : 0).toFixed(2)} A ${r} ${r} 0 ${large} 1 ${(x1 != null ? x1 : 0).toFixed(2)} ${(y1 != null ? y1 : 0).toFixed(2)}`
 }
 
 interface Props {
